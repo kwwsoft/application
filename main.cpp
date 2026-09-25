@@ -1,6 +1,23 @@
 #include "stm32f10x.h"
 #include "stm32f10x_gpio.h"
 #include "stm32f10x_rcc.h"
+#include "firmware_header.h"
+
+// ?? Надійна абсолютна адресація для Compiler V6 в C++. 
+// Линкер сам зрозуміє адресу, і Scatter-файл її прийме без жодних попереджень.
+extern "C" const FirmwareHeader_t my_fw_header __attribute__((section(".ARM.__at_0x08002800"))) = {
+    // Завдяки Little Endian у бінарнику фізично запишеться: 53 54 4D 33 -> строго "STM3"
+    .magic_number = 0x334D5453,        // "STM3"
+    .file_size = 0x00000000,           // Заповнить скрипт на ПК
+    .firmware_crc32 = 0x00000000,      // Заповнить скрипт на ПК
+    .ver_major = 1,
+    .ver_minor = 0,
+    .ver_patch = 0,
+    .reserved1 = 0,
+    .ver_build = 01,                   // Номер білду
+    .hardware_id = "STM32F103_CBT6",   // Прив'язка до заліза
+    .reserved2 = {0}                   // Резерв
+};
 
 // Проста функція затримки
 void Delay(uint32_t count) {
@@ -10,8 +27,9 @@ void Delay(uint32_t count) {
 }
 
 int main(void) {
-    // ?? КРИТИЧНО: Зміщуємо таблицю векторів на 10 КБ (0x2800)
-    NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x2800);
+
+// ?? КРИТИЧНО: Зміщуємо таблицю векторів на 10 КБ (0x2800) + 64 bytes header
+    NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x2840);
     
     // Ініціалізація периферії (на прикладі LED на PC13)
     GPIO_InitTypeDef GPIO_InitStructure;
