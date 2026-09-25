@@ -5,18 +5,18 @@ import os
 import shutil
 
 def stm32_crc32(data: bytes) -> int:
-    """Calculate hardware CRC32 aligned with STM32 MCU algorithm"""
+    """Calculate hardware CRC32 aligned strictly with STM32 Little Endian memory"""
     crc = 0xFFFFFFFF
     poly = 0x04C11DB7
     
-    # STM32 calculates CRC32 strictly by 32-bit words (4 bytes)
+    # Fill remaining bytes with 0xFF if not aligned to 4 bytes
     remainder = len(data) % 4
     if remainder != 0:
         data += b'\xFF' * (4 - remainder)
         
     for i in range(0, len(data), 4):
-        # Unpack 4 bytes as one 32-bit unsigned int (Big Endian for CRC math)
-        word = struct.unpack('>I', data[i:i+4])[0]
+        
+        word = struct.unpack('<I', data[i:i+4])[0]
         crc ^= word
         
         for _ in range(32):
