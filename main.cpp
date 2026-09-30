@@ -15,8 +15,9 @@ extern "C" const FirmwareHeader_t my_fw_header __attribute__((section(".ARM.__at
     .ver_patch = 0,
     .reserved1 = 0,
     .ver_build = 01,                   // Номер білду
-    .hardware_id = "STM32F103_CBT6",   // Прив'язка до заліза
-    .reserved2 = {0}                   // Резерв
+    .hardware_id = "STM32F103CB",   // Прив'язка до заліза
+    .aes_key = {0},
+		.aes_iv = {0}
 };
 
 // Проста функція затримки

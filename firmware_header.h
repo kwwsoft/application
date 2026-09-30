@@ -2,18 +2,21 @@
 
 // Вирівнюємо структуру на 64 байти, щоб вона чітко зайняла весь виділений простір
 typedef struct __attribute__((packed)) {
-    uint32_t magic_number;     // 4 байти: унікальний маркер 
-    uint32_t file_size;        // 4 байти: точний розмір бінарника (пропише скрипт на ПК)
-    uint32_t firmware_crc32;   // 4 байти: CRC32 всього тіла програми (пропише скрипт на ПК)
+    uint32_t magic_number;     // 4 байти (0x334D5453 -> "STM3")
+    uint32_t file_size;        // 4 байти (розмір файлу)
+    uint32_t firmware_crc32;   // 4 байти (CRC32 зашифрованого (!) тіла)
     
-    // Версія ПЗ (Semantic Versioning)
+    // Версія ПЗ
     uint8_t  ver_major;        // 1 байт
     uint8_t  ver_minor;        // 1 байт
     uint8_t  ver_patch;        // 1 байт
-    uint8_t  reserved1;        // 1 байт (вирівнювання)
-    uint32_t ver_build;        // 4 байти: номер збірки
+    uint8_t  reserved1;        // 1 байт
+    uint32_t ver_build;        // 4 байти
 
-    char     hardware_id[16];  // 16 байт: ідентифікатор плати (наприклад, "STM32F103_CBT6")
+    char     hardware_id[12];  // 12 байт (трохи урізали рядок, щоб звільнити місце)
     
-    uint8_t  reserved2[28];    // 24 байти: пусті резервні байти, щоб добити розмір рівно до 64 байт
+    // ?? КРИПТО-ПАСПОРТ (Разом 32 байти)
+    uint8_t  aes_key[16];      // 16 байт ключа (тимчасово заповнить Python)
+    uint8_t  aes_iv[16];       // 16 байт вектора IV (тимчасово заповнить Python)
 } FirmwareHeader_t;
+//#pragma pack(pop)
