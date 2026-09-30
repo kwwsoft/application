@@ -11,7 +11,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  ver_minor;        // 1 байт
     uint8_t  ver_patch;        // 1 байт
     uint8_t  reserved1;        // 1 байт
-    uint32_t ver_build;        // 4 байти
+    uint32_t clean_crc32;      // ?? 4 байти (Тут тепер живе CRC32 чистого коду!)
 
     char     hardware_id[12];  // 12 байт (трохи урізали рядок, щоб звільнити місце)
     

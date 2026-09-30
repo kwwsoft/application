@@ -7,8 +7,11 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 
 def stm32_crc32(data: bytes) -> int:
+    """Calculate hardware CRC32 aligned strictly with STM32 Little Endian memory"""
     crc = 0xFFFFFFFF
     poly = 0x04C11DB7
+    
+    # Fill remaining bytes with 0xFF if not aligned to 4 bytes
     remainder = len(data) % 4
     if remainder != 0:
         data += b'\xFF' * (4 - remainder)
@@ -31,49 +34,55 @@ def patch_and_encrypt_firmware(file_path):
     with open(file_path, 'rb') as f:
         fw_data = bytearray(f.read())
 
-    file_size = len(fw_data)
-    print(f"--- Encrypting firmware: {file_path} ---")
-
     if fw_data[0:4] != b'STM3':
         print("Error: Invalid Magic Number!")
         return False
 
-    # 1. Генеруємо випадкові 16 байт ключа та 16 байт IV
+    print(f"--- Encrypting firmware: {file_path} ---")
+
+    # 1. Рахуємо CRC32 від ЧИСТОГО (незашифрованого) тіла програми
+    # Тіло програми починається після 64 байт хедера
+    clean_body = bytes(fw_data[64:])
+    clean_crc32 = stm32_crc32(clean_body)
+    print(f"Calculated Clean (Decrypted) CRC32: 0x{clean_crc32:08X}")
+
+    # ?? ТОЧНА АДРЕСА: Записуємо clean_crc32 строго за зміщенням 16..20 (замість колишнього ver_build)
+    fw_data[16:20] = struct.pack('<I', clean_crc32)
+
+    # 2. Генеруємо випадкові 16 байт ключа та 16 байт IV
     key = get_random_bytes(16)
     iv = get_random_bytes(16)
 
-    # Записуємо їх у хедер прошивки (Ключ з 32-го байта, IV з 48-го байта)
+    # Записуємо їх у хедер (Ключ з 32-го байта, IV з 48-го байта)
     fw_data[32:48] = key
     fw_data[48:64] = iv
 
-    # 2. Вирізаємо чисте тіло програми (все, що після 64 байт хедера)
-    fw_body = bytes(fw_data[64:])
-
-    # AES вимагає, щоб дані були кратні 16 байтам (Pad за стандартом PKCS7)
-    pad_len = 16 - (len(fw_body) % 16)
+    # 3. Готуємо тіло програми до шифрування (вирівнювання AES під 16 байт)
+    fw_body_to_encrypt = bytes(fw_data[64:])
+    pad_len = 16 - (len(fw_body_to_encrypt) % 16)
     if pad_len != 16:
-        fw_body += b'\xFF' * pad_len # Добиваємо пустими байтами заліза
+        fw_body_to_encrypt += b'\xFF' * pad_len
 
-    # 3. ШИФРУЄМО ТІЛО ПРОГРАМИ
+    # 4. ШИФРУЄМО ТІЛО ПРОГРАМИ
     cipher = AES.new(key, AES.MODE_CBC, iv)
-    encrypted_body = cipher.encrypt(fw_body)
+    encrypted_body = cipher.encrypt(fw_body_to_encrypt)
 
-    # 4. Оновлюємо фінальний розмір файлу (Хедер 64 + зашифроване тіло)
+    # 5. Оновлюємо фінальний розмір файлу
     final_size = 64 + len(encrypted_body)
     fw_data[4:8] = struct.pack('<I', final_size)
 
-    # 5. Рахуємо CRC32 від ЗАШИФРОВАНОГО тіла програми
-    calculated_crc = stm32_crc32(encrypted_body)
-    fw_data[8:12] = struct.pack('<I', calculated_crc)
-    print(f"New Encrypted Size: {final_size} bytes. Encrypted CRC32: 0x{calculated_crc:08X}")
+    # 6. Рахуємо CRC32 від вже ЗАШИФРОВАНОГО тіла програми
+    encrypted_crc32 = stm32_crc32(encrypted_body)
+    fw_data[8:12] = struct.pack('<I', encrypted_crc32)
+    print(f"New Encrypted Size: {final_size} bytes. Encrypted CRC32: 0x{encrypted_crc32:08X}")
 
-    # Збираємо фінальний файл: Хедер (де вже лежать Ключ та IV) + Зашифроване тіло
+    # Збираємо фінальний файл: Оновлений Хедер + Зашифроване тіло
     final_fw = fw_data[0:64] + encrypted_body
 
     with open(file_path, 'wb') as f:
         f.write(final_fw)
 
-    print("Firmware successfully ENCRYPTED and header patched!")
+    print("Firmware successfully ENCRYPTED and dual-CRC patched!")
     return True
 
 if __name__ == "__main__":
