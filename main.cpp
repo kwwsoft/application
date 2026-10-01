@@ -18,8 +18,8 @@ extern "C" const FirmwareHeader_t my_fw_header __attribute__((section(".ARM.__at
     .reserved1 = 0,
     .clean_crc32 = 0x00000000,       // црц нешифрованого
     .hardware_id = "STM32F103CB",   // Прив'язка до заліза
-    .aes_key = {0},
-		.aes_iv = {0}
+    .aes_key = {0},   //шлак
+		.aes_iv = {0}			//вектор з пітона
 };
 
 //**************************************************************************

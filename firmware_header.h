@@ -16,7 +16,7 @@ typedef struct __attribute__((packed)) {
     char     hardware_id[12];  // 12 байт (трохи урізали рядок, щоб звільнити місце)
     
     // ?? КРИПТО-ПАСПОРТ (Разом 32 байти)
-    uint8_t  aes_key[16];      // 16 байт ключа (тимчасово заповнить Python)
+    uint8_t  aes_key[16];      // поле пусте - ключ в пайтоні вшитий намертво
     uint8_t  aes_iv[16];       // 16 байт вектора IV (тимчасово заповнить Python)
 } FirmwareHeader_t;
 //#pragma pack(pop)
