@@ -1,7 +1,9 @@
 #include "stm32f10x.h"
 #include "stm32f10x_gpio.h"
 #include "stm32f10x_rcc.h"
+#include "stm32f10x_tim.h"              // Keil::Device:StdPeriph Drivers:TIM
 #include "firmware_header.h"
+#include "my_tim2_delay.h"
 
 // ?? Надійна абсолютна адресація для Compiler V6 в C++. 
 // Линкер сам зрозуміє адресу, і Scatter-файл її прийме без жодних попереджень.
@@ -20,17 +22,14 @@ extern "C" const FirmwareHeader_t my_fw_header __attribute__((section(".ARM.__at
 		.aes_iv = {0}
 };
 
-// Проста функція затримки
-void Delay(uint32_t count) {
-    while(count--) {
-        __NOP(); // Асемблерна пуста операція, щоб компілятор не оптимізував цикл
-    }
-}
-
+//**************************************************************************
 int main(void) {
 
 // ?? КРИТИЧНО: Зміщуємо таблицю векторів на 10 КБ (0x2800) + 64 bytes header
     NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x2840);
+	
+		//
+		TIM2_Init();
     
     // Ініціалізація периферії (на прикладі LED на PC13)
     GPIO_InitTypeDef GPIO_InitStructure;
@@ -46,6 +45,6 @@ int main(void) {
         // Миготимо у два рази швидше або повільніше, ніж зазвичай, 
         // щоб візуально відрізнити роботу Application від Bootloader
         GPIO_WriteBit(GPIOC, GPIO_Pin_13, (BitAction)(1 - GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_13)));
-        Delay(500000); 
+			  delay_ms(600);
     }
 }
