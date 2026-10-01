@@ -41,36 +41,37 @@ def patch_and_encrypt_firmware(file_path):
     print(f"--- Encrypting firmware: {file_path} ---")
 
     # 1. Рахуємо CRC32 від ЧИСТОГО (незашифрованого) тіла програми
-    # Тіло програми починається після 64 байт хедера
-    clean_body = bytes(fw_data[64:])
-    clean_crc32 = stm32_crc32(clean_body)
-    print(f"Calculated Clean (Decrypted) CRC32: 0x{clean_crc32:08X}")
-
-    # ?? ТОЧНА АДРЕСА: Записуємо clean_crc32 строго за зміщенням 16..20 (замість колишнього ver_build)
-    fw_data[16:20] = struct.pack('<I', clean_crc32)
+# 1. Записуємо тимчасові нулі на місце clean_crc32 (зміщення 16)
+    fw_data[16:20] = b'\x00\x00\x00\x00'
 
     # 2. Генеруємо випадкові 16 байт ключа та 16 байт IV
     key = get_random_bytes(16)
     iv = get_random_bytes(16)
-
-    # Записуємо їх у хедер (Ключ з 32-го байта, IV з 48-го байта)
     fw_data[32:48] = key
     fw_data[48:64] = iv
 
-    # 3. Готуємо тіло програми до шифрування (вирівнювання AES під 16 байт)
-    fw_body_to_encrypt = bytes(fw_data[64:])
+    # 3. Вирізаємо чисте тіло програми (все, що після 64 байт хедера)
+    fw_body_to_encrypt = bytearray(fw_data[64:])
+
+    # ?? ВИРІВНЮВАННЯ AES (Дописуємо пусті байти ДО розрахунку clean_crc32!)
     pad_len = 16 - (len(fw_body_to_encrypt) % 16)
     if pad_len != 16:
         fw_body_to_encrypt += b'\xFF' * pad_len
 
+    # ?? ТЕПЕР РАХУЄМО CLEAN CRC32 (Він залізно врахує хвіст 0xFF і збіжиться із залізом STM32!)
+    clean_crc32 = stm32_crc32(bytes(fw_body_to_encrypt))
+    print(f"Calculated Clean (Aligned) CRC32: 0x{clean_crc32:08X}")
+
+    # Записуємо фінальний clean_crc32 в структуру хедера (зміщення 16..20)
+    fw_data[16:20] = struct.pack('<I', clean_crc32)
+
     # 4. ШИФРУЄМО ТІЛО ПРОГРАМИ
     cipher = AES.new(key, AES.MODE_CBC, iv)
-    encrypted_body = cipher.encrypt(fw_body_to_encrypt)
+    encrypted_body = cipher.encrypt(bytes(fw_body_to_encrypt))
 
     # 5. Оновлюємо фінальний розмір файлу
     final_size = 64 + len(encrypted_body)
     fw_data[4:8] = struct.pack('<I', final_size)
-
     # 6. Рахуємо CRC32 від вже ЗАШИФРОВАНОГО тіла програми
     encrypted_crc32 = stm32_crc32(encrypted_body)
     fw_data[8:12] = struct.pack('<I', encrypted_crc32)
